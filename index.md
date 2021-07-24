@@ -9,3 +9,75 @@ Features:
  - Compatible with any language
  - Designed for Kubernetes and cloud infrastructure first
  - Simple deployment through helm, docker, docker-compose, or binaries
+
+### Simplicity and minimalism are built right in
+
+Apps for Bytebot require a minimum of boilerplate or configuration. They need only to be able to hold a TCP socket open and read/write JSON to that socket. This means you can write in virtually any language.
+
+Messages follow a common, consistent format for each protocol and overlap common fields when possible, meaning you can subscribe to and handle multiple protocols with ease.
+
+Because messages from gateways are merely JSON objects, your app does not need to be aware of how a protocol works in order to interact with it. To have a discord bot, you don't need to know how to open the Discord websocket, authenticate, or maintain a connection. You merely need to subscribe to messages originating from the Bytebot discord gateway.
+
+For example, here is a fully working app that leverages the discord gateway
+
+```
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"time"
+
+	"github.com/bytebot-chat/gateway-discord/model"
+	"github.com/go-redis/redis/v8"
+	"github.com/satori/go.uuid"
+)
+
+var addr = flag.String("redis", "localhost:6379", "Redis server address")
+var inbound = flag.String("inbound", "discord-inbound", "Pubsub queue to listen for new messages")
+var outbound = flag.String("outbound", "discord", "Pubsub queue for sending messages outbound")
+
+func main() {
+	flag.Parse()
+	ctx := context.Background()
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr: *addr,
+		DB:   0,
+	})
+
+	err := rdb.Ping(ctx).Err()
+	if err != nil {
+		time.Sleep(3 * time.Second)
+		err := rdb.Ping(ctx).Err()
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	topic := rdb.Subscribe(ctx, *inbound)
+	channel := topic.Channel()
+	for msg := range channel {
+		m := &model.Message{}
+		err := m.Unmarshal([]byte(msg.Payload))
+		if err != nil {
+			fmt.Println(err)
+		}
+		if m.Content == "ping" {
+			reply(ctx, *m, rdb)
+		}
+	}
+}
+
+func reply(ctx context.Context, m model.Message, rdb *redis.Client) {
+	metadata := model.Metadata{
+		Dest:   m.Metadata.Source,
+		Source: "discord-pingpong",
+		ID:     uuid.Must(uuid.NewV4(), *new(error)),
+	}
+	stringMsg, _ := m.MarshalReply(metadata, m.ChannelID, "pong")
+	rdb.Publish(ctx, *outbound, stringMsg)
+	return
+}
+```
