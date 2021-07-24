@@ -81,3 +81,15 @@ func reply(ctx context.Context, m model.Message, rdb *redis.Client) {
 	return
 }
 ```
+
+### Don't change everything, just update your apps
+
+Have you noticed that with virtually every chatbot, updating a single piece of the bot requires rebuilding and redeploying the entire thing? With bytebot, every app runs independently of every other one, including the gateway. Updating your service is seamless and transparent to the user. They never even notice a reconnect.
+
+### Connecting lots of servers is a breeze
+
+Want your app to talk to lots of endpoints at once? With bytebot, you can run a single instance of the application and multiple gateways. You now have a single bot with presence on an arbitrary number of servers, which can be challenging in many protocols.
+
+### Bridging and interacting with multiple protocols is trivial
+
+Want to send IRC messages to discord? Read RSS and publish to twitter? Write a message broadcast system that hits dozens of endpoints or channels at once? Ingest messages from hundreds of different sources? Gateways ingest events, serialize them to JSON, and publish them as they get them. Your app only needs to be able to deserialize the JSON and handle it however it chooses. It doesn't need to know multiple protocols to speak to multiple protocols.
