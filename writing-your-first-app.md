@@ -132,5 +132,7 @@ You can attach to the container and view output the same way you did with the ga
 
 At this point, your bot should be responding to messages. Try it out!
 
+#### Next
+- [Message routing](message-routing.md)
 #### Previous
 - [Quickstart](quickstart.md)
