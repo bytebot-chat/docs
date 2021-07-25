@@ -126,3 +126,6 @@ Now run `docker-compose up -d pingpong` from your project directory.
 You can attach to the container and view output the same way you did with the gateway by running `docker-compose logs -f pingpong`.
 
 At this point, your bot should be responding to messages. Try it out!
+
+#### Previous
+- [Quickstart](quickstart.md)
