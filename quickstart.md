@@ -41,3 +41,11 @@ Next, run `docker-compose up -d` from this new directory and `docker-compose ps`
 
 ### Verify your deployment
 To see your gateway in action, run `docker-compose logs -f bytebot` to see your bot connecting to discord. Every message sent is relayed through the discord gateway to redis, ready for apps to receive.
+
+Now that your gateway and router are up, it's time to write and deploy your first app!
+
+#### Next
+- [Write your first app](writing-your-first-app.md)
+
+#### Previous
+- [Home](index.md)
