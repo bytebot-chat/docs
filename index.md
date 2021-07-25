@@ -10,6 +10,12 @@ Features:
  - Designed for Kubernetes and cloud infrastructure first
  - Simple deployment through helm, docker, docker-compose, or binaries
 
+### Quickstart
+
+Ready to jump in before you've read everything? Follow our quickstart guide to get Bytebot up and running fast.
+
+[Start the tour](quickstart.md)
+
 ### Simplicity and minimalism are built right in
 
 Apps for Bytebot require a minimum of boilerplate or configuration. They need only to be able to hold a TCP socket open and read/write JSON to that socket. This means you can write in virtually any language.
