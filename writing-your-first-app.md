@@ -99,12 +99,17 @@ version: "3.8"
 services:
   bytebot:
     image: dkr.fraq.dev/bytebot/gateway-discord:edge
-    environment:
-      BYTEBOT_REDIS: "redis:6379"
-      BYTEBOT_ID: ${BYTEBOT_ID:-discord}
-      BYTEBOT_INBOUND: ${BYTEBOT_INBOUND:-discord-inbound}
-      BYTEBOT_OUTBOUND: ${BYTEBOT_OUTBOUND:-discord-outbound}
-      BYTEBOT_TOKEN: your-discord-bot-token-here
+    command:
+      - "-id"
+      - "discord"
+      - "-inbound"
+      - "discord-inbound"
+      - "-outbound"
+      - "-discord-outbound"
+      - "-token"
+      - "your-discord-bot-token-goes-here"
+      - "-redis"
+      - "redis:6379"
   redis:
     image: redis:6.2.3
     ports:
