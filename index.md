@@ -99,3 +99,9 @@ Want your app to talk to lots of endpoints at once? With bytebot, you can run a 
 ### Bridging and interacting with multiple protocols is trivial
 
 Want to send IRC messages to discord? Read RSS and publish to twitter? Write a message broadcast system that hits dozens of endpoints or channels at once? Ingest messages from hundreds of different sources? Gateways ingest events, serialize them to JSON, and publish them as they get them. Your app only needs to be able to deserialize the JSON and handle it however it chooses. It doesn't need to know multiple protocols to speak to multiple protocols.
+
+
+Ready to get started?
+
+#### Next
+- [Quickstart](quickstart.md)
