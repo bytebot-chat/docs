@@ -8,56 +8,12 @@ It also reads messages from an inbound queue and pushes them towards the platfor
 
 By convention, a gateway for a platform is named `gateway-{platform name}`
 
-### Message structure and metadata
-
-A message must be exported to json. Along of the message's content, it's metadata
-must contain three fields, "Source", "Dest", and "ID".
-
-Once JSON encoded, a typical message looks like this:
-
-```
-//TODO
-```
-
 ### Writing a gateway
 
 We are going to go over gateway-rss as an example.
 It's a simple readonly gateway, so we won't use the inbound queue.
 
 The code is partial, take a look at [gateway-rss](https://github.com/bytebot-chat/gateway-rss) for it's complete version.
-
-#### Connection to redis
-
-We need to connect to a redis database, we will do so using [go-redis](https://github.com/go-redis/redis/v8)
-
-```
-// This function connects to a redis database and returns a client
-func rdbConnect(addr string) *redis.Client {
-	ctx := context.Background()
-	log.Info().
-		Str("redis", addr).
-		Msg("connecting to redis...")
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-
-	err := rdb.Ping(ctx).Err()
-	if err != nil {
-		time.Sleep(3 * time.Second)
-		err := rdb.Ping(ctx).Err()
-		if err != nil {
-			log.Fatal().
-				Err(err).
-				Msg("Couldn't connect to redis")
-			os.Exit(1)
-		}
-	}
-
-	return rdb
-}
-```
 
 #### Data structure
 
@@ -66,58 +22,199 @@ We are using a [library to handle rss](https://github.com/SlyMarbo/rss), so
 we will extend it's main structure:
 
 ```golang
+// Message and related utils, this is the base unit.
 type Message struct {
 	*rss.Item
 	Metadata Metadata
 }
 
+// This is standard over _all_ gateways.
 type Metadata struct {
 	Source string
 	Dest   string
 	ID     uuid.UUID
 }
 
-// Let's add a Marshal method to get it in proper json to push it:
 func (m *Message) Marshal() ([]byte, error) {
 	return json.Marshal(m)
 }
+
+func MessageFromItem(item *rss.Item) *Message {
+	msg := new(Message)
+	msg.Item = item
+
+	return msg
+}
 ```
 
+Please note that the Metadata struct must be followed exactly for apps to be able to parse them.
+
+
 ### Reading a feed and pushing it's feeds to the queue
-We are not going to go over the specifics of rss parsing, as this is rather uninteresting, but the following is the program's main function:
+
+We are extending the `Feed` struct from our rss handling library:
 
 ```golang
-func main() {
-	feed, _ := model.CreateFeed(feedURL)
-	rdb = rdbConnect(redisAddr)
-	ctx = context.Background()
+/// Feed struct and utils, this describes the feed we follow.
+type Feed struct {
+	*rss.Feed
+}
 
-	// Until the gateway is stopped, read new items on the feed,
-	// transform them into messages, add metadata and push them on the queue.
-	for {
-		feed.Update()
-		for _, i := range feed.Items {
-			if !i.Read {
-				msg := MessageFromItem(i)
-				msg.Metadata.ID = uuid.Must(uuid.NewV4(), *new(error))
-				msg.Metadata.Source = f.UpdateURL
-				msg.Metadata.Dest = "gateway-rss"
+// Reading new items and pushing it to the queue.
+func pushNewItemsToQueue(feed *rss.Feed) error {
+	for _, i := range feed.Items {
+		if !i.Read {
+			msg := MessageFromItem(i)
+			msg.Metadata.ID = uuid.Must(uuid.NewV4(), *new(error))
+			msg.Metadata.Source = feedURL
+			msg.Metadata.Dest = "gateway-rss"
 
-				stringMsg, _ := json.Marshal(msg)
-				rdb.Publish(ctx, inbound, stringMsg)
+			stringMsg, _ := json.Marshal(msg)
+			rdb.Publish(ctx, inbound, stringMsg)
 
-				i.Read = true
-			}
+			i.Read = true
 		}
-	
+	}
+	return nil
+}
+
+```
+
+The pushNewItemsToQueue method is an abstraction that we reuse in the main loop.
+
+### The main function
+The main function is pretty straightforward, first connect to redis and read the feed
+then refresh the feed and push it's new items to redis.
+
+```
+func main() {
+	rdb = rdbConnect("127.0.0.1:6379")
+	ctx = context.Background()
+	delay = 3
+
+	feed, _ := rss.Fetch(feedURL)
+
+	for {
+		feed.Refresh = time.Now()
+		feed.Update()
+		pushNewItemsToQueue(feed)
+
 		time.Sleep(time.Second * delay)
 	}
 }
 ```
 
-### Deploying a gateway
+### Putting it all together
 
-Now that we wrote this gateway, we need to deploy it, let's do so with docker-compose:
+Here is the full gateway:
+
+```golang
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"time"
+
+	"github.com/SlyMarbo/rss"
+	"github.com/go-redis/redis/v8"
+	"github.com/satori/go.uuid"
+)
+
+var (
+	ctx context.Context
+	rdb *redis.Client
+
+	delay time.Duration
+
+	feedURL   = "http://localhost:8000/flux.xml"
+	redisAddr = "127.0.0.1:6379"
+	inbound   = "rss-inbound"
+	// we don't need an outbound queue for a rss gateway
+)
+
+func main() {
+	rdb = rdbConnect("127.0.0.1:6379")
+	ctx = context.Background()
+	delay = 3
+
+	feed, _ := rss.Fetch(feedURL)
+
+	for {
+		feed.Refresh = time.Now()
+		feed.Update()
+		pushNewItemsToQueue(feed)
+
+		time.Sleep(time.Second * delay)
+	}
+}
+
+/// Feed struct and utils, this describes the feed we follow.
+type Feed struct {
+	*rss.Feed
+}
+
+// Reading new items and pushing it to the queue.
+func pushNewItemsToQueue(feed *rss.Feed) error {
+	for _, i := range feed.Items {
+		if !i.Read {
+			msg := MessageFromItem(i)
+			msg.Metadata.ID = uuid.Must(uuid.NewV4(), *new(error))
+			msg.Metadata.Source = feedURL
+			msg.Metadata.Dest = "gateway-rss"
+
+			stringMsg, _ := json.Marshal(msg)
+			rdb.Publish(ctx, inbound, stringMsg)
+
+			i.Read = true
+		}
+	}
+	return nil
+}
+
+// Message and related utils, this is the base unit.
+type Message struct {
+	*rss.Item
+	Metadata Metadata
+}
+
+// This is standard over _all_ gateways.
+type Metadata struct {
+	Source string
+	Dest   string
+	ID     uuid.UUID
+}
+
+func (m *Message) Marshal() ([]byte, error) {
+	return json.Marshal(m)
+}
+
+func MessageFromItem(item *rss.Item) *Message {
+	msg := new(Message)
+	msg.Item = item
+
+	return msg
+}
+
+// Redis connection function
+func rdbConnect(addr string) *redis.Client {
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     addr,
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+
+	return rdb
+}
+```
+
+This is very basic, it lacks logging and configuration, for starters.
+
+Take a look at [gateway-rss](https://github.com/bytebot-chat/gateway-rss) if you need to pipe your rss feeds into bytebot.
+
+### Deploying it
+
+Let's use docker-compose:
 
 ```Dockerfile
 FROM golang:1.16.4-alpine3.13 as builder
@@ -126,32 +223,30 @@ RUN adduser -D -g 'bytebot' bytebot
 WORKDIR /app
 COPY . .
 RUN apk add --no-cache git tzdata
-RUN ./docker-build.sh
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -ldflags "-s -w -extldflags '-static'" -o ./opt/bytebot
 
 FROM scratch
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /app/opt/bytebot /opt/bytebot
 
+# Our chosen default for Prometheus
 USER bytebot
 ENTRYPOINT ["/opt/bytebot"]
 ```
 
-And add our services, namely the gateway and the redis db it's talking to:
+and the docker-compose:
 
 ```yaml
 version: "3.8"
 services:
   bytebot:
-          #network_mode: "host" #TODO allows access to localhost
     build: .
-    environment:
-      BYTEBOT_REDIS: "redis:6379"
-      BYTEBOT_INBOUND: ${BYTEBOT_INBOUND:-irc-inbound}
-      BYTEBOT_OUTBOUND: ${BYTEBOT_OUTBOUND:-irc}
-      BYTEBOT_FEED: "http://127.0.0.1:8000/flux.xml"
   redis:
     image: redis:6.2.3
     ports:
       - "127.0.0.1:6379:6379"
 ```
+
+Run it with `docker-compose -d` and voilà
