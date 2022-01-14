@@ -19,11 +19,11 @@ Bytebot relies on redis for message routing and caching some information, so we 
 
 Create a new directory and in that directory, add the following file as `docker-compose.yaml`
 
-```
+```yaml
 version: "3.8"
 services:
   bytebot:
-    image: dkr.fraq.dev/bytebot/gateway-discord:edge
+    image: ghcr.io/bytebot-chat/gateway-discord:latest
     command:
       - "-id"
       - "discord"
