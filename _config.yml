@@ -1,4 +1,1 @@
 theme: jekyll-theme-minimal
-mermaid: true
-plugins:
-  - jekyll-mermaid

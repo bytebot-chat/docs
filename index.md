@@ -16,7 +16,7 @@ Bytebot is not:
 This system has three components: a message router, a message gateway, and a message consumer. 
 
 
-```mermaid
+<div class="mermaid">
 graph TD;
 	A[Discord server] --> B[Message gateway];
 	B --> C[Message router];
@@ -26,4 +26,4 @@ graph TD;
 	E --> F;
 	F --> G[Message gateway];
 	G --> H[Discord server];
-```
+</div>
