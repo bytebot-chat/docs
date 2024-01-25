@@ -8,8 +8,8 @@ Bytebot is:
 
 Bytebot is not:
  - a chatbot (on its own)
- - a bot that does anything useful
- - supported
+ - a bot that does anything useful (yet)
+ - supported (ever)
 
 ## How It Works
 
