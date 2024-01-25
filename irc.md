@@ -1,1 +1,0 @@
-## IRC Gateway Spec
